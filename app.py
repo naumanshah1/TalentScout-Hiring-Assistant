@@ -1,3 +1,6 @@
+# -------------------------------
+# Imports & Setup
+# -------------------------------
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -16,10 +19,13 @@ from groq import Groq
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+# -------------------------------
+# Streamlit UI Title
+# -------------------------------
 st.title("🤖 TalentScout Hiring Assistant")
 
 # -------------------------------
-# Initialize session states
+# Initialize Session State
 # -------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -39,9 +45,18 @@ if "candidate" not in st.session_state:
     }
 
 # -------------------------------
-# LLM Function (Improved Prompt)
+# LLM Function
 # -------------------------------
 def generate_questions(tech_stack):
+    """
+    Generates 3–5 technical interview questions based on the candidate's tech stack.
+
+    Parameters:
+    tech_stack (str): Technologies provided by the candidate
+
+    Returns:
+    str: Formatted list of interview questions
+    """
     prompt = f"""
     You are an expert technical interviewer.
 
@@ -65,7 +80,6 @@ def generate_questions(tech_stack):
             model="llama3-8b-8192",
             messages=[{"role": "user", "content": prompt}]
         )
-
         return response.choices[0].message.content
 
     except Exception:
@@ -87,13 +101,13 @@ if len(st.session_state.messages) == 0:
     st.session_state.stage = "collect_name"
 
 # -------------------------------
-# Display chat history
+# Display Chat History
 # -------------------------------
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
 # -------------------------------
-# Chat input
+# Chat Input
 # -------------------------------
 user_input = st.chat_input("Type your response...")
 
@@ -134,7 +148,7 @@ if user_input:
     response = ""
 
     # -------------------------------
-    # Conversation Flow
+    # Conversation Logic
     # -------------------------------
     if st.session_state.stage == "collect_name":
         st.session_state.candidate["name"] = user_input
