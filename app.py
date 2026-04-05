@@ -7,31 +7,43 @@ import os
 from groq import Groq
 
 # -------------------------------
-# Data Privacy Note
+# UI Configuration
 # -------------------------------
-# All candidate data is stored temporarily using Streamlit session state.
-# No data is persisted or stored in any database.
-# This ensures user privacy and secure handling of sensitive information.
+st.set_page_config(page_title="TalentScout", page_icon="🤖", layout="centered")
+
+st.markdown("""
+<style>
+body { background-color: #0e1117; }
+.stChatMessage {
+    border-radius: 12px;
+    padding: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("## 🤖 TalentScout Hiring Assistant")
+st.caption("AI-powered candidate screening system")
+
+# -------------------------------
+# Language Selection
+# -------------------------------
+language = st.selectbox("Select Language", ["English", "Hindi"])
 
 # -------------------------------
 # Load API Key
 # -------------------------------
 load_dotenv()
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=api_key) if api_key else None
 
 # -------------------------------
-# Streamlit UI Title
-# -------------------------------
-st.title("🤖 TalentScout Hiring Assistant")
-
-# -------------------------------
-# Initialize Session State
+# Session State
 # -------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "stage" not in st.session_state:
-    st.session_state.stage = "greeting"
+    st.session_state.stage = "collect_name"
 
 if "candidate" not in st.session_state:
     st.session_state.candidate = {
@@ -45,66 +57,104 @@ if "candidate" not in st.session_state:
     }
 
 # -------------------------------
-# LLM Function
+# Sentiment Analysis
 # -------------------------------
-def generate_questions(tech_stack):
-    """
-    Generates 3–5 technical interview questions based on the candidate's tech stack.
+def analyze_sentiment(text):
+    text = text.lower()
+    if any(w in text for w in ["good", "great", "confident"]):
+        return "Positive"
+    elif any(w in text for w in ["nervous", "difficult", "not sure"]):
+        return "Negative"
+    return "Neutral"
 
-    Parameters:
-    tech_stack (str): Technologies provided by the candidate
+# -------------------------------
+# LLM Function (FINAL FIX)
+# -------------------------------
+def generate_questions(tech_stack, experience, language):
+    if not client:
+        raise Exception("No API key")
 
-    Returns:
-    str: Formatted list of interview questions
-    """
     prompt = f"""
     You are an expert technical interviewer.
 
-    Your task is to generate 3 to 5 high-quality technical interview questions.
+    Candidate Tech Stack:
+    {tech_stack}
 
-    Requirements:
-    - Questions must be based on the candidate's tech stack: {tech_stack}
-    - Questions should be moderately difficult
-    - Cover core concepts, practical usage, and problem-solving
-    - Be clear and concise
-    - Avoid repetition
+    Experience: {experience} years
 
-    Output format:
-    1. Question
-    2. Question
-    3. Question
+    Generate EXACTLY 4 technical interview questions.
+    Each question must focus on ONE technology only.
+
+    Example:
+    - One Python question
+    - One Django question
+    - One PostgreSQL question
+
+    Do NOT combine technologies.
+    Keep them practical and interview-focused.
+
+    Respond in {language}.
     """
 
-    try:
-        response = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content
+    response = client.chat.completions.create(
+        model="mixtral-8x7b-32768",  # ✅ WORKING MODEL
+        messages=[
+            {"role": "system", "content": "You are a strict technical interviewer."},
+            {"role": "user", "content": prompt}
+        ]
+    )
 
+    return response.choices[0].message.content
+
+# -------------------------------
+# Cached Questions
+# -------------------------------
+@st.cache_data
+def cached_questions(tech_stack, experience, language):
+    try:
+        return generate_questions(tech_stack, experience, language)
     except Exception:
-        return f"""
-1. Explain fundamentals of {tech_stack}.
-2. What are real-world applications of {tech_stack}?
-3. What are advantages and limitations of {tech_stack}?
-4. Describe a project you built using {tech_stack}.
+        return """
+1. What is the difference between list and tuple in Python?
+2. Explain Django MVT architecture.
+3. What is indexing in PostgreSQL?
+4. How would you scale a Django application?
 """
+
+# -------------------------------
+# Progress Bar
+# -------------------------------
+progress_map = {
+    "collect_name": 10,
+    "collect_email": 20,
+    "collect_phone": 30,
+    "collect_experience": 40,
+    "collect_role": 50,
+    "collect_location": 60,
+    "tech_stack": 80,
+    "end": 100
+}
+st.progress(progress_map.get(st.session_state.stage, 0))
 
 # -------------------------------
 # Initial Greeting
 # -------------------------------
 if len(st.session_state.messages) == 0:
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "Hello! 👋 I am TalentScout Hiring Assistant.\n\nI will collect your details and ask a few technical questions.\n\nWhat is your full name?"
-    })
-    st.session_state.stage = "collect_name"
+    greeting = "Hello! What is your full name?" if language == "English" else "नमस्ते! आपका नाम क्या है?"
+    st.session_state.messages.append({"role": "assistant", "content": greeting})
 
 # -------------------------------
-# Display Chat History
+# Display Chat
 # -------------------------------
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
+
+# -------------------------------
+# End Handling
+# -------------------------------
+if st.session_state.stage == "end":
+    st.chat_input("Conversation completed.", disabled=True)
+    st.stop()
 
 # -------------------------------
 # Chat Input
@@ -113,102 +163,62 @@ user_input = st.chat_input("Type your response...")
 
 if user_input:
 
-    # Exit condition
+    sentiment = analyze_sentiment(user_input)
+    st.caption(f"🧠 Sentiment: {sentiment}")
+
     if user_input.lower() in ["exit", "quit", "bye"]:
-        response = "Thank you for your time! 🙌 Our team will contact you soon."
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response
-        })
-
-        st.chat_message("assistant").write(response)
+        st.chat_message("assistant").write("Thank you! Goodbye!")
         st.stop()
 
-    # Fallback handling
-    if not user_input.strip():
-        response = "Sorry, I didn’t understand that. Please provide valid input."
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response
-        })
-
-        st.chat_message("assistant").write(response)
-        st.stop()
-
-    # Store user message
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_input
-    })
-
+    st.session_state.messages.append({"role": "user", "content": user_input})
     st.chat_message("user").write(user_input)
 
     response = ""
 
     # -------------------------------
-    # Conversation Logic
+    # Conversation Flow
     # -------------------------------
     if st.session_state.stage == "collect_name":
         st.session_state.candidate["name"] = user_input
-        response = "Please enter your email address:"
+        response = "Enter email:"
         st.session_state.stage = "collect_email"
 
     elif st.session_state.stage == "collect_email":
         st.session_state.candidate["email"] = user_input
-        response = "Please enter your phone number:"
+        response = "Enter phone number:"
         st.session_state.stage = "collect_phone"
 
     elif st.session_state.stage == "collect_phone":
         st.session_state.candidate["phone"] = user_input
-        response = "How many years of experience do you have?"
+        response = "Years of experience?"
         st.session_state.stage = "collect_experience"
 
     elif st.session_state.stage == "collect_experience":
         st.session_state.candidate["experience"] = user_input
-        response = "What position are you applying for?"
+        response = "Desired role?"
         st.session_state.stage = "collect_role"
 
     elif st.session_state.stage == "collect_role":
         st.session_state.candidate["role"] = user_input
-        response = "What is your current location?"
+        response = "Current location?"
         st.session_state.stage = "collect_location"
 
     elif st.session_state.stage == "collect_location":
         st.session_state.candidate["location"] = user_input
-        response = "Please list your tech stack (languages, frameworks, tools):"
+        response = "Enter tech stack:"
         st.session_state.stage = "tech_stack"
 
+    # 🔥 FINAL FIX: instant generation
     elif st.session_state.stage == "tech_stack":
         st.session_state.candidate["tech_stack"] = user_input
-        response = "Thanks! Generating technical questions..."
-        st.session_state.stage = "generate_questions"
 
-    elif st.session_state.stage == "generate_questions":
-        tech_stack = st.session_state.candidate["tech_stack"]
-        questions = generate_questions(tech_stack)
+        tech = user_input
+        exp = st.session_state.candidate["experience"]
+
+        questions = cached_questions(tech, exp, language)
 
         response = f"Here are your technical questions:\n\n{questions}"
         st.session_state.stage = "end"
 
-    elif st.session_state.stage == "end":
-        response = (
-            "✅ Thank you for completing the initial screening!\n\n"
-            "Our recruitment team will review your responses and reach out to you soon.\n\n"
-            "Have a great day! 🚀"
-        )
-
-    # Store assistant response
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": response
-    })
-
+    st.session_state.messages.append({"role": "assistant", "content": response})
     st.chat_message("assistant").write(response)
-
-# -------------------------------
-# Disable input after completion
-# -------------------------------
-if st.session_state.stage == "end":
-    st.chat_input("Conversation completed. Type 'exit' to close.", disabled=True)

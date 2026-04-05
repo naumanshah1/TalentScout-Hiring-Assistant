@@ -1,5 +1,9 @@
 # TalentScout Hiring Assistant Chatbot
+
 ## Developed by: Nauman Shah
+
+---
+
 ## Project Overview
 
 The TalentScout Hiring Assistant is an AI-powered chatbot designed to assist in the initial screening of candidates for technical roles. It interacts with users through a conversational interface, collects essential candidate information, and generates technical interview questions based on the candidate’s declared tech stack.
@@ -28,12 +32,22 @@ The system demonstrates the use of Large Language Models (LLMs) to automate and 
 
 ---
 
+## Bonus Features (Optional Enhancements)
+
+* Sentiment analysis to detect user tone (positive/neutral/negative)
+* Multilingual support (English & Hindi)
+* Personalized question generation based on experience level
+* Enhanced UI with custom styling and progress indicators
+* Performance optimization using caching for faster responses
+
+---
+
 ## Installation Instructions
 
 1. Clone the repository:
 
 ```
-git clone https://github.com/naumanshah1/TalentScout.git
+git clone https://github.com/naumanshah1/TalentScout-Hiring-Assistant.git
 cd TalentScout
 ```
 
@@ -61,7 +75,7 @@ streamlit run app.py
 
 1. Launch the chatbot using Streamlit
 2. Enter your details step-by-step as prompted
-3. Provide your tech stack (e.g., Python, Django, MySQL)
+3. Provide your tech stack (e.g., Python, Django, PostgreSQL)
 4. The chatbot will generate technical interview questions
 5. Type `exit` to end the conversation at any time
 
@@ -76,13 +90,14 @@ streamlit run app.py
 ### Libraries & Tools
 
 * Streamlit – for building the chatbot interface
-* Groq API – for accessing LLaMA3 Large Language Model
+* Groq API – for accessing Large Language Models
 * python-dotenv – for managing environment variables
 
 ### Model Used
 
-* LLaMA3 (via Groq API)
+* Mixtral-8x7b (via Groq API)
 * Used for generating dynamic, context-aware technical questions
+* Includes fallback mechanism in case of API failure
 
 ### Architecture
 
@@ -120,6 +135,14 @@ Requirements:
 ```
 
 This ensures consistent and high-quality outputs from the LLM.
+
+---
+
+## Performance Optimization
+
+* Uses Streamlit caching (`st.cache_data`) to reduce repeated API calls
+* Lightweight architecture ensures fast response time
+* Efficient session state management for smooth interaction flow
 
 ---
 
@@ -169,4 +192,4 @@ This approach aligns with fundamental GDPR principles.
 
 ## Conclusion
 
-The TalentScout Hiring Assistant successfully demonstrates how AI-powered chatbots can automate candidate screening by collecting structured data and generating relevant technical questions. The system is scalable, user-friendly, and aligns with modern AI-driven recruitment practices.
+The TalentScout Hiring Assistant successfully demonstrates how AI-powered chatbots can automate candidate screening by collecting structured data and generating relevant technical questions. The system is scalable, user-friendly, and aligns with modern AI-driven recruitment practices. It also ensures reliability through a fallback mechanism, guaranteeing consistent performance even when external APIs are unavailable.
