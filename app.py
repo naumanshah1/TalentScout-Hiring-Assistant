@@ -23,7 +23,7 @@ language = st.selectbox("Select Language", ["English", "Hindi"])
 # Load API
 # -------------------------------
 load_dotenv()
-api_key = os.getenv("GROQ_API_KEY")
+api_key = st.secrets["GROQ_API_KEY"]
 client = Groq(api_key=api_key) if api_key else None
 
 # -------------------------------
